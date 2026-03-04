@@ -1,7 +1,9 @@
 package org.example.springboot.enumClass;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
 
+@Getter
 public enum AccountStatus {
     @Schema(description = "") PENDING_REVIEW("PENDING_REVIEW"),
     @Schema(description = "") REVIEW_SUCCESS("REVIEW_SUCCESS"),
@@ -13,7 +15,4 @@ public enum AccountStatus {
         this.value = value;
     }
 
-    public String getValue() {
-        return value;
-    }
 }

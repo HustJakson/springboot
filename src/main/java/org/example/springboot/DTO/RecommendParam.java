@@ -1,7 +1,7 @@
 package org.example.springboot.DTO;
 
 /**
- * @Author: Ynw
+ * @Author: xjb
  * @Date: 2026/01/29/21:48
  * @Description: 推荐参数封装类，用于封装推荐功能所需的参数信息
  */

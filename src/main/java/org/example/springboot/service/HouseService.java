@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.example.springboot.DTO.RecommendParam;
 import org.example.springboot.DTO.UserHousePreference;
@@ -26,13 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,8 +40,6 @@ import java.util.Set;
 
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 房屋服务实现类
@@ -77,6 +71,7 @@ public class HouseService {
     /**
      * 分页查询房屋信息
      * @param title 房屋标题
+     * @param address 房屋地址
      * @param minPrice 最低价格
      * @param maxPrice 最高价格
      * @param typeId 房屋类型ID
@@ -85,13 +80,19 @@ public class HouseService {
      * @param size 每页大小
      * @return 分页数据
      */
-    public Page<House> getHousesByPage(String title, Long landLordId, BigDecimal minPrice, BigDecimal maxPrice,
+    public Page<House> getHousesByPage(String title, String address, Long landLordId, BigDecimal minPrice, BigDecimal maxPrice,
                                        Long typeId, Integer status, Integer currentPage, Integer size) {
         LambdaQueryWrapper<House> queryWrapper = new LambdaQueryWrapper<>();
 
         // 添加查询条件
         if (StringUtils.isNotBlank(title)) {
             queryWrapper.like(House::getTitle, title);
+        }
+
+        //地址查询条件
+
+        if (StringUtils.isNotBlank(address)) {
+            queryWrapper.like(House::getAddress, address);
         }
 
         if (minPrice != null) {
@@ -330,8 +331,6 @@ public class HouseService {
         }
     }
 
-
-
     /**
      * 协同过滤推荐房屋（入参仅status、currentPage、size）
      * @param param 入参对象（包含status、currentPage、size）
@@ -358,7 +357,8 @@ public class HouseService {
             // 第一层推荐：基于当前用户自身订单（原有逻辑）
             IPage<House> personalRecommendPage = recommendByPersonalPreference(param.getStatus(), userPreference, page);
             if (personalRecommendPage.getTotal() > 0) {
-                personalRecommendPage.getRecords().forEach(this::fillHouseBasicInfo);
+//                personalRecommendPage.getRecords().forEach(this::fillHouseBasicInfo);
+                fillHousesBasicInfo(personalRecommendPage.getRecords());
                 return personalRecommendPage;
             }
 
@@ -367,7 +367,8 @@ public class HouseService {
                 IPage<House> similarUserRecommendPage = recommendBySimilarUser(
                         userId, param.getStatus(), userPreference, page);
                 if (similarUserRecommendPage.getTotal() > 0) {
-                    similarUserRecommendPage.getRecords().forEach(this::fillHouseBasicInfo);
+//                    similarUserRecommendPage.getRecords().forEach(this::fillHouseBasicInfo);
+                    fillHousesBasicInfo(similarUserRecommendPage.getRecords());
                     return similarUserRecommendPage;
                 }
             }
@@ -375,7 +376,8 @@ public class HouseService {
 
         // 3. 兜底层：无登录/无偏好/无推荐结果 → 返回最新待出租房屋
         IPage<House> hotHousePage = houseMapper.selectPage(page, baseQuery);
-        hotHousePage.getRecords().forEach(this::fillHouseBasicInfo);
+//        hotHousePage.getRecords().forEach(this::fillHouseBasicInfo);
+        fillHousesBasicInfo(hotHousePage.getRecords());
         return hotHousePage;
     }
 
@@ -400,7 +402,7 @@ public class HouseService {
         return houseMapper.selectPage(page, query);
     }
 
-    // ====================== 第二层：基于相似用户行为推荐（新增） ======================
+    // ====================== 第二层：基于相似用户行为推荐 ======================
     private IPage<House> recommendBySimilarUser(Long currentUserId, Integer status,
                                                 UserHousePreference currentPref, Page<House> page) {
         // 1. 查找与当前用户偏好相似的其他用户ID（排除自己）
@@ -430,7 +432,6 @@ public class HouseService {
                 .eq(House::getStatus, status)
                 .in(House::getId, recommendHouseIds)
                 .orderByDesc(House::getCreateTime);
-
         return houseMapper.selectPage(page, query);
     }
 
@@ -563,29 +564,91 @@ public class HouseService {
         return orderMapper.selectList(query);
     }
 
+//    /**
+//     * 填充房屋基础信息：类型名称、房东姓名/头像（复用HouseService的核心逻辑）
+//     */
+//    private void fillHouseBasicInfo(House house) {
+//        if (house == null) {
+//            return;
+//        }
+//        // 填充房屋类型名称
+//        if (house.getTypeId() != null) {
+//            HouseType houseType = houseTypeMapper.selectById(house.getTypeId());
+//            if (houseType != null) {
+//                house.setTypeName(houseType.getName());
+//            }
+//        }
+//        // 填充房东信息
+//        if (house.getLandlordId() != null) {
+//            User landlord = userMapper.selectById(house.getLandlordId());
+//            if (landlord != null) {
+//                house.setLandlordName(landlord.getName());
+//                house.setLandlordImg(landlord.getAvatar());
+//            }
+//        }
+//    }
+//
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
     /**
-     * 填充房屋基础信息：类型名称、房东姓名/头像（复用HouseService的核心逻辑）
+     * 批量填充房屋基础信息（一次性查询，避免N+1问题）
+     * @param houses 房屋列表
      */
-    private void fillHouseBasicInfo(House house) {
-        if (house == null) {
+    private void fillHousesBasicInfo(List<House> houses) {
+        if (houses == null || houses.isEmpty()) {
             return;
         }
-        // 填充房屋类型名称
-        if (house.getTypeId() != null) {
-            HouseType houseType = houseTypeMapper.selectById(house.getTypeId());
-            if (houseType != null) {
-                house.setTypeName(houseType.getName());
+
+        // 1. 收集所有需要查询的ID
+        Set<Long> typeIds = new HashSet<>();
+        Set<Long> landlordIds = new HashSet<>();
+
+        for (House house : houses) {
+            if (house.getTypeId() != null) {
+                typeIds.add(house.getTypeId());
+            }
+            if (house.getLandlordId() != null) {
+                landlordIds.add(house.getLandlordId());
             }
         }
-        // 填充房东信息
-        if (house.getLandlordId() != null) {
-            User landlord = userMapper.selectById(house.getLandlordId());
-            if (landlord != null) {
-                house.setLandlordName(landlord.getName());
-                house.setLandlordImg(landlord.getAvatar());
+
+        // 2. 批量查询类型信息（一次查询）
+        Map<Long, HouseType> typeMap = new HashMap<>();
+        if (!typeIds.isEmpty()) {
+            List<HouseType> types = houseTypeMapper.selectBatchIds(typeIds);
+            typeMap = types.stream()
+                    .collect(Collectors.toMap(HouseType::getId, Function.identity()));
+        }
+
+        // 3. 批量查询房东信息（一次查询）
+        Map<Long, User> userMap = new HashMap<>();
+        if (!landlordIds.isEmpty()) {
+            List<User> users = userMapper.selectBatchIds(landlordIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(User::getId, Function.identity()));
+        }
+
+        // 4. 一次性填充所有房屋
+        for (House house : houses) {
+            // 填充类型名称
+            if (house.getTypeId() != null) {
+                HouseType type = typeMap.get(house.getTypeId());
+                if (type != null) {
+                    house.setTypeName(type.getName());
+                }
+            }
+
+            // 填充房东信息
+            if (house.getLandlordId() != null) {
+                User landlord = userMap.get(house.getLandlordId());
+                if (landlord != null) {
+                    house.setLandlordName(landlord.getName());
+                    house.setLandlordImg(landlord.getAvatar());
+                }
             }
         }
     }
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     /**
      * 填充房屋类型名称和房东姓名
@@ -610,6 +673,8 @@ public class HouseService {
             if (landlord != null) {
                 house.setLandlordName(landlord.getName());
                 house.setLandlordImg(landlord.getAvatar());
+                //获取房东电话
+                house.setLandlordPhone(landlord.getPhone());
             }
         }
     }

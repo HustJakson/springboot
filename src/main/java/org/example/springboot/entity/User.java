@@ -61,7 +61,7 @@ public class User {
     
     @Schema(description = "状态(0:禁用,1:正常)")
     private Integer status;
-    
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
     
@@ -70,5 +70,6 @@ public class User {
     
     @TableField(exist = false)
     private String token;
+    
 
 }

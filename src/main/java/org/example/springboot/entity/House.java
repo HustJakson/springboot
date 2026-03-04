@@ -64,8 +64,14 @@ public class House {
     @TableField(exist = false)
     @Schema(description = "房东姓名")
     private String landlordName;
+
     @TableField(exist = false)
     @Schema(description = "房东头像")
     private String landlordImg;
+
+    @TableField(exist = false)
+    @Schema(description = "房东电话")
+    private String landlordPhone;
+
 
 } 

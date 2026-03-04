@@ -30,6 +30,10 @@ public class HouseController {
     @GetMapping("/page")
     public Result<?> getHousesByPage(
             @RequestParam(defaultValue = "") String title,
+
+            //地址模糊查询
+            @RequestParam(defaultValue = "") String address,
+
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) Long typeId,
@@ -40,7 +44,7 @@ public class HouseController {
 //        if (status == null) {
 //            status = 1; // 默认查询待出租状态
 //        }
-        Page<House> page = houseService.getHousesByPage(title,landLordId, minPrice, maxPrice, typeId, status, currentPage, size);
+        Page<House> page = houseService.getHousesByPage(title, address, landLordId, minPrice, maxPrice, typeId, status, currentPage, size);
         return Result.success(page);
     }
 

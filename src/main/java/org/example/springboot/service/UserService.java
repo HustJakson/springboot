@@ -94,6 +94,7 @@ public class UserService {
         if (userMapper.insert(user) <= 0) {
             throw new ServiceException("用户创建失败");
         }
+
     }
 
     public void updateUser(Long id, User user) {
