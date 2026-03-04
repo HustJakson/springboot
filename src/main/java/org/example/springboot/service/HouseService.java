@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.example.springboot.DTO.RecommendParam;
 import org.example.springboot.DTO.UserHousePreference;
@@ -16,7 +15,6 @@ import org.example.springboot.exception.ServiceException;
 import org.example.springboot.mapper.HouseMapper;
 import org.example.springboot.mapper.HouseTypeMapper;
 import org.example.springboot.mapper.OrderMapper;
-import org.example.springboot.mapper.TransactionMapper;
 import org.example.springboot.mapper.UserMapper;
 import org.example.springboot.util.JwtTokenUtils;
 import org.slf4j.Logger;
@@ -26,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -38,7 +37,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import java.util.stream.Collectors;
 
 
 /**
@@ -510,7 +508,7 @@ public class HouseService {
             return null;
         }
         BigDecimal sum = prices.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-        return sum.divide(new BigDecimal(prices.size()), 2, BigDecimal.ROUND_HALF_UP);
+        return sum.divide(new BigDecimal(prices.size()), 2, RoundingMode.HALF_UP);
     }
 
     // 判断两个用户是否相似：类型交集≥1 或 价格区间重叠
